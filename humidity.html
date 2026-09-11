@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Offline Humidity Calculator</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --panel:#ffffff; --ink:#18212b; --muted:#6a7480;
+    --line:#d9e0e6; --accent:#1f5f8b; --accent2:#eef5fa; --bad:#a73333;
+    --good:#2d6b48; --shadow:0 10px 30px rgba(28,45,60,.08);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.45; font-size:17px;
+  }
+  .app{max-width:1180px;margin:0 auto;padding:24px}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:18px}
+  h1{font-size:30px;margin:0 0 4px;font-weight:700;letter-spacing:-.02em}
+    .badge{font-size:12px;color:var(--good);background:#edf7f1;border:1px solid #cfe7d8;border-radius:999px;padding:6px 10px;white-space:nowrap}
+  .grid{display:grid;grid-template-columns:390px 1fr;gap:18px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .panel-h{padding:17px 18px 11px;font-weight:700;font-size:18px}
+  .panel-b{padding:8px 18px 18px}
+  .section{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+  .section:first-child{border-top:0;padding-top:0;margin-top:0}
+  .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px}
+  .row{display:grid;grid-template-columns:1fr 126px;gap:10px;align-items:end;margin:10px 0}
+  .row.three{grid-template-columns:1fr 126px 94px}
+  label{display:block;font-size:14px;color:var(--muted);margin-bottom:5px}
+  input,select,button{
+    width:100%;height:38px;border:1px solid #c9d2da;border-radius:8px;background:#fff;color:var(--ink);
+    padding:0 11px;font:inherit;font-size:16px;outline:none;
+  }
+  input:focus,select:focus{border-color:#75a9cd;box-shadow:0 0 0 3px rgba(66,137,186,.13)}
+  button{cursor:pointer;font-weight:650}
+  .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .secondary{background:#fff}
+  .buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .error{display:none;margin:0 18px 14px;padding:10px 12px;border-radius:8px;background:#fff0f0;border:1px solid #f0c8c8;color:var(--bad);font-size:13px}
+  .summary{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 18px 16px;
+  }
+  .metric{background:var(--accent2);border:1px solid #d8e8f3;border-radius:10px;padding:12px}
+  .metric .k{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+  .metric .v{font-size:26px;font-weight:730;letter-spacing:-.02em}
+  .metric .u{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:12px 10px;border-top:1px solid var(--line);font-size:16px}
+  th{text-align:left;color:var(--muted);font-weight:650;background:#fafbfc}
+  td:nth-child(2),td:nth-child(3){text-align:right;font-variant-numeric:tabular-nums}
+  .result-name{font-weight:600}
+  td.copy-value,.metric.copy-value{cursor:pointer;position:relative}
+  td.copy-value:hover{background:#f4f8fb}
+  .metric.copy-value:hover{outline:2px solid rgba(31,95,139,.18)}
+  .copied::after{
+    content:"Copied";
+    position:absolute;right:8px;top:6px;
+    font-size:11px;font-weight:700;color:#fff;background:var(--accent);
+    border-radius:6px;padding:3px 6px;pointer-events:none;
+  }
+    details{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 15px}
+  summary{cursor:pointer;font-size:14px;font-weight:650}
+  details p{font-size:13px;color:var(--muted);margin:10px 0 2px}
+  .advanced-row{display:grid;grid-template-columns:1fr 180px;gap:10px;align-items:end;margin-top:10px}
+  .footer-note{text-align:center;color:var(--muted);font-size:12px;margin:13px 0 2px}
+  @media(max-width:850px){
+    .grid{grid-template-columns:1fr}
+    .summary{grid-template-columns:1fr 1fr}
+    header{align-items:flex-start;flex-direction:column}
+  }
+  @media(max-width:520px){.summary{grid-template-columns:1fr}.app{padding:12px}.row,.row.three{grid-template-columns:1fr}}
+  @media print{body{background:#fff}.app{max-width:none;padding:0}.panel{box-shadow:none}details,.buttons,.badge{display:none}}
+</style>
+
+<meta name="theme-color" content="#1f5f8b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="HVAC Tools">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+
+<style id="pwa-nav-style">
+  .pwa-header-actions{display:flex;align-items:center;gap:8px}
+  .pwa-home{display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 11px;border:1px solid var(--line,#d7dee5);border-radius:9px;background:#fff;color:var(--ink,#17212b);font-size:13px;font-weight:650;text-decoration:none;white-space:nowrap}
+  .pwa-home:active{transform:translateY(1px)}
+  @media(max-width:600px){.pwa-home{height:32px;padding:0 9px;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Humidity & Dew Point Calculator</h1>
+    </div>
+    <div class="pwa-header-actions"><a class="pwa-home" href="index.html" aria-label="Back to HVAC Tools">‹ Tools</a><div class="badge">● Offline</div></div>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-h">Known inputs</div>
+      <div class="panel-b">
+        <div class="section">
+          <div class="section-title">Humidity</div>
+          <div class="row">
+            <div>
+              <label for="humidType">Parameter</label>
+              <select id="humidType">
+                <option value="dpf" selected>Dew / frost point (auto phase)</option>
+                <option value="mix">Mixing ratio (weight)</option>
+                <option value="rh">Relative humidity</option>
+                <option value="h">Enthalpy</option>
+                <option value="wb">Wet-bulb temperature</option>
+                <option value="wvp">Water vapour pressure</option>
+                <option value="dp">Dew point (over water)</option>
+                <option value="fp">Frost point (over ice)</option>
+                <option value="abs">Absolute humidity</option>
+                <option value="ppmv">Moisture content (volume)</option>
+                <option value="ppmw">Moisture content (weight)</option>
+                <option value="aw">Water activity</option>
+              </select>
+            </div>
+            <div>
+              <label for="humidValue">Value</label>
+              <input id="humidValue" type="number" step="any" value="-50">
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="humidUnit">Units</label>
+              <select id="humidUnit"></select>
+            </div>
+            <div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Pressure</div>
+          <div class="row three">
+            <div>
+              <label for="p1">Sample pressure P</label>
+              <input id="p1" type="number" step="any" value="1.01325">
+            </div>
+            <div>
+              <label for="p2" title="For pressure-dew-point compensation. Keep P New equal to P when no compensation is needed.">Target pressure P New</label>
+              <input id="p2" type="number" step="any" value="1.01325">
+            </div>
+            <div>
+              <label for="pUnit">Units</label>
+              <select id="pUnit">
+                <option value="barg">barg</option>
+                <option value="bara" selected>bara</option>
+                <option value="kpag">kPa(g)</option>
+                <option value="kpaa">kPa(a)</option>
+                <option value="psig">psig</option>
+                <option value="psia">psia</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Gas</div>
+          <div class="row">
+            <div>
+              <label for="gasPreset">Molecular weight preset</label>
+              <select id="gasPreset">
+                <option value="28.96546" selected>Air</option>
+                <option value="31.9988">O₂</option>
+                <option value="28.0134">N₂</option>
+                <option value="2.01588">H₂</option>
+                <option value="44.0095">CO₂</option>
+                <option value="28.0101">CO</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <label for="mw">MW (g/mol)</label>
+              <input id="mw" type="number" step="any" value="28.96546">
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Temperature</div>
+          <div class="row">
+            <div>
+              <label for="temp">Dry-bulb temperature T</label>
+              <input id="temp" type="number" step="any" value="20">
+            </div>
+            <div>
+              <label for="tempUnit">Units</label>
+              <select id="tempUnit">
+                <option value="c" selected>°C</option>
+                <option value="f">°F</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <details class="advanced">
+          <summary>Advanced settings</summary>
+          <div class="advanced-row">
+            <label for="rhRef" title="Defines the saturation-pressure reference used for relative humidity when dry-bulb temperature is below 0°C. This does not change the dew/frost auto-phase calculation.">RH reference below 0°C</label>
+            <select id="rhRef">
+              <option value="water" selected>Water (WMO)</option>
+              <option value="ice">Ice</option>
+            </select>
+          </div>
+        </details>
+
+        <div class="buttons">
+          <button id="reset" class="secondary">Reset</button>
+          <button id="calc" class="primary">Calculate</button>
+        </div>
+      </div>
+      <div id="error" class="error"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-h">Results at target pressure</div>
+      <div class="summary">
+        <div class="metric copy-value" id="heroDPBox"><div class="k">Dew / frost point</div><div class="v"><span id="heroDP">–</span><span class="u">°C</span></div></div>
+        <div class="metric copy-value" id="heroMixBox"><div class="k">Mixing ratio</div><div class="v"><span id="heroMix">–</span><span class="u">g/kg</span></div></div>
+        <div class="metric copy-value" id="heroRHBox"><div class="k">Relative humidity</div><div class="v"><span id="heroRH">–</span><span class="u">%rh</span></div></div>
+      </div>
+      <div style="overflow:auto">
+      <table>
+        <thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead>
+        <tbody>
+          <tr><td class="result-name" title="Standard moist-air HVAC relation; most meaningful with the Air preset.">Enthalpy</td><td id="rH">–</td><td>kJ/kg dry gas</td></tr>
+          <tr><td class="result-name" title="Water-vapour mass per unit volume at the target pressure and entered dry-bulb temperature.">Absolute humidity</td><td id="rAbs">–</td><td>g/m³</td></tr>
+          <tr><td class="result-name">Dew / frost point (auto phase)</td><td id="rDPF">–</td><td>°C</td></tr>
+          <tr><td class="result-name">Mixing ratio (weight)</td><td id="rMix">–</td><td>g/kg dry gas</td></tr>
+          <tr><td class="result-name">Relative humidity</td><td id="rRH">–</td><td>%rh</td></tr>
+          <tr><td class="result-name">Water vapour pressure</td><td id="rWVP">–</td><td>Pa</td></tr>
+          <tr><td class="result-name">RH reference saturation pressure</td><td id="rSWVP">–</td><td>Pa</td></tr>
+          <tr><td class="result-name">Wet-bulb temperature</td><td id="rWB">–</td><td>°C</td></tr>
+          <tr><td class="result-name">Dew point (over water)</td><td id="rDP">–</td><td>°C</td></tr>
+          <tr><td class="result-name">Frost point (over ice)</td><td id="rFP">–</td><td>°C</td></tr>
+          <tr><td class="result-name">Moisture content (volume)</td><td id="rPPMV">–</td><td>ppmv</td></tr>
+          <tr><td class="result-name">Moisture content (weight)</td><td id="rPPMW">–</td><td>ppmw</td></tr>
+          <tr><td class="result-name">Water activity</td><td id="rAw">–</td><td>–</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+  </div>
+
+  <details>
+    <summary>Calculation basis & limits</summary>
+    <p>
+      Saturation vapour pressure uses Sonntag (1994). The default dew/frost-point input uses liquid water at 0°C and above and ice below 0°C; explicit over-water and over-ice inputs are also available.
+      Relative humidity below 0°C defaults to liquid-water saturation pressure (WMO); ice reference can be selected in Advanced settings. No enhancement factor is applied. Dew/frost inversion is solved numerically.
+      Recommended dew-point range is approximately -100°C to +100°C at atmospheric pressure. Wet-bulb temperature is solved from the ventilated psychrometer relation using γ = 0.000665 × P.
+    </p>
+  </details>
+  <div class="footer-note">For engineering calculation checks only.</div>
+</div>
+
+<script>
+"use strict";
+
+const ATM = 101325.0;
+const MW_WATER = 18.01528;
+const R = 8.314462618;
+
+const $ = id => document.getElementById(id);
+
+function fmt(x, sig=7){
+  if(!Number.isFinite(x)) return "–";
+  const ax=Math.abs(x);
+  if(ax!==0 && (ax>=1e7 || ax<1e-7)){
+    const parts=x.toExponential(Math.max(2,sig-1)).split("e");
+    return parts[0].replace(".",",")+"e"+parts[1];
+  }
+  // French-style display: decimal comma and locale grouping.
+  return x.toLocaleString("fr-FR",{maximumSignificantDigits:sig,useGrouping:true});
+}
+
+function fullPrecision(x){
+  if(!Number.isFinite(x)) return "";
+  // 16 significant digits: enough for engineering reuse without exposing
+  // meaningless binary floating-point tail noise.
+  // No thousands separator is used here so the copied value pastes cleanly
+  // into French/European Excel as a number.
+  let out=x.toPrecision(16);
+  if(!/[eE]/.test(out)){
+    out=out.replace(/(\.\d*?[1-9])0+$/,"$1").replace(/\.0+$/,"");
+  }
+  return out.replace(".",",");
+}
+
+function setResult(id,value,sig=7){
+  const el=$(id);
+  el.textContent=fmt(value,sig);
+  el.dataset.raw=fullPrecision(value);
+  el.title="Full precision: "+el.dataset.raw+"\nClick to copy";
+  el.classList.add("copy-value");
+}
+
+function setHero(textId,boxId,value,sig=7){
+  const text=$(textId), box=$(boxId);
+  text.textContent=fmt(value,sig);
+  box.dataset.raw=fullPrecision(value);
+  box.title="Full precision: "+box.dataset.raw+"\nClick to copy";
+}
+
+async function copyResult(el){
+  const raw=el.dataset.raw;
+  if(!raw) return;
+  try{
+    await navigator.clipboard.writeText(raw);
+  }catch(_){
+    const ta=document.createElement("textarea");
+    ta.value=raw; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  el.classList.add("copied");
+  setTimeout(()=>el.classList.remove("copied"),700);
+}
+
+function cFrom(v,u){ return u==="f" ? (v-32)*5/9 : v; }
+function cTo(v,u){ return u==="f" ? v*9/5+32 : v; }
+
+function pressureAbsPa(v,u){
+  if(!Number.isFinite(v)) return NaN;
+  switch(u){
+    case "barg": return v*100000 + ATM;
+    case "bara": return v*100000;
+    case "kpag": return v*1000 + ATM;
+    case "kpaa": return v*1000;
+    case "psig": return v*6894.757293168 + ATM;
+    case "psia": return v*6894.757293168;
+  }
+  return NaN;
+}
+
+function sonntagWater(tC){
+  const T = tC + 273.15;
+  if(T <= 0) return NaN;
+  return Math.exp(
+    -6096.9385/T + 21.2409642
+    - 2.711193e-2*T
+    + 1.673952e-5*T*T
+    + 2.433502*Math.log(T)
+  );
+}
+
+function sonntagIce(tC){
+  const T = tC + 273.15;
+  if(T <= 0) return NaN;
+  return Math.exp(
+    -6024.5282/T + 29.32707
+    + 1.0613868e-2*T
+    - 1.3198825e-5*T*T
+    - 0.49382577*Math.log(T)
+  );
+}
+
+function satForCondensation(tC){
+  return tC < 0 ? sonntagIce(tC) : sonntagWater(tC);
+}
+
+function satForRH(tC){
+  if(tC >= 0) return sonntagWater(tC);
+  return $("rhRef").value === "ice" ? sonntagIce(tC) : sonntagWater(tC);
+}
+
+function invertPressure(e, phase){
+  if(!(e > 0)) return NaN;
+  let lo=-150, hi=150;
+  const f = phase==="ice" ? sonntagIce : sonntagWater;
+  // Expand/check range gracefully.
+  if(e <= f(lo)) return lo;
+  if(e >= f(hi)) return hi;
+  for(let i=0;i<100;i++){
+    const mid=(lo+hi)/2;
+    if(f(mid) > e) hi=mid; else lo=mid;
+  }
+  return (lo+hi)/2;
+}
+
+function dewPointFromE(e){
+  // Dew point is defined over liquid water; above 0°C this is conventional.
+  return invertPressure(e,"water");
+}
+
+function frostPointFromE(e){
+  const dp = dewPointFromE(e);
+  if(dp >= 0) return dp;
+  return invertPressure(e,"ice");
+}
+
+function autoPointFromE(e){
+  const e0 = sonntagWater(0);
+  return e < e0 ? invertPressure(e,"ice") : invertPressure(e,"water");
+}
+
+function wetBulbFromE(Tdb,e,P){
+  if(!(P>0) || !(e>0)) return NaN;
+  if(e >= satForRH(Tdb)) return Tdb;
+  let lo=-120, hi=Tdb;
+  const gamma = 0.000665 * P; // Pa/K when P is in Pa
+  for(let i=0;i<100;i++){
+    const tw=(lo+hi)/2;
+    const val = sonntagWater(tw) - gamma*(Tdb-tw);
+    if(val > e) hi=tw; else lo=tw;
+  }
+  return (lo+hi)/2;
+}
+
+function eFromWetBulb(Tdb,Twb,P){
+  const gamma = 0.000665 * P;
+  return sonntagWater(Twb) - gamma*(Tdb-Twb);
+}
+
+function humidityUnits(type){
+  const map={
+    rh:[["%rh","%rh"]],
+    dpf:[["°C","c"],["°F","f"]],
+    dp:[["°C","c"],["°F","f"]],
+    fp:[["°C","c"],["°F","f"]],
+    ppmv:[["ppmv","ppmv"]],
+    ppmw:[["ppmw","ppmw"]],
+    mix:[["g/kg","gkg"],["kg/kg","kgkg"],["lb/lb","lblb"],["grains/lb","grlb"]],
+    abs:[["g/m³","gm3"],["mg/m³","mgm3"],["kg/m³","kgm3"]],
+    wvp:[["Pa","pa"],["hPa / mbar","hpa"],["kPa","kpa"],["bar","bar"],["psi","psi"],["mmHg","mmhg"]],
+    aw:[["–","aw"]],
+    wb:[["°C","c"],["°F","f"]],
+    h:[["kJ/kg","kjkg"],["Btu/lb","btulb"]]
+  };
+  return map[type] || [];
+}
+
+function refreshUnits(){
+  const type=$("humidType").value, u=$("humidUnit");
+  const old=u.value;
+  u.innerHTML="";
+  humidityUnits(type).forEach(([label,val])=>{
+    const o=document.createElement("option");o.textContent=label;o.value=val;u.appendChild(o);
+  });
+  if([...u.options].some(o=>o.value===old)) u.value=old;
+}
+
+function humidityToE(type,val,unit,T,P,MW){
+  if(!Number.isFinite(val)) return NaN;
+  const ratio = MW_WATER / MW;
+  switch(type){
+    case "rh": return (val/100)*satForRH(T);
+    case "aw": return val*satForRH(T);
+    case "dpf": return satForCondensation(cFrom(val,unit));
+    case "dp": return sonntagWater(cFrom(val,unit));
+    case "fp": return sonntagIce(cFrom(val,unit));
+    case "ppmv": {
+      const x=val/1e6; return x*P;
+    }
+    case "ppmw": {
+      const q=val/1e6; // mass water / mass moist gas
+      if(q<=0 || q>=1) return NaN;
+      const y=q/(1-q); // mass water / mass dry gas
+      const x=y/(ratio+y);
+      return x*P;
+    }
+    case "mix": {
+      let y;
+      if(unit==="gkg") y=val/1000;
+      else if(unit==="kgkg" || unit==="lblb") y=val;
+      else if(unit==="grlb") y=val/7000;
+      if(!(y>=0)) return NaN;
+      const x=y/(ratio+y);
+      return x*P;
+    }
+    case "abs": {
+      let rho;
+      if(unit==="gm3") rho=val/1000;
+      else if(unit==="mgm3") rho=val/1e6;
+      else if(unit==="kgm3") rho=val;
+      return rho*R*(T+273.15)/(MW_WATER/1000);
+    }
+    case "wvp":
+      if(unit==="pa") return val;
+      if(unit==="hpa") return val*100;
+      if(unit==="kpa") return val*1000;
+      if(unit==="bar") return val*100000;
+      if(unit==="psi") return val*6894.757293168;
+      if(unit==="mmhg") return val*133.322387415;
+      return NaN;
+    case "wb": return eFromWetBulb(T,cFrom(val,unit),P);
+    case "h": {
+      let h=unit==="btulb" ? val*2.326 : val;
+      // h = 1.006T + w(2501 + 1.86T), solve w
+      const w=(h-1.006*T)/(2501+1.86*T);
+      if(w<0) return NaN;
+      const x=w/(ratio+w);
+      return x*P;
+    }
+  }
+  return NaN;
+}
+
+function calculate(){
+  const type=$("humidType").value;
+  const val=parseFloat($("humidValue").value);
+  const unit=$("humidUnit").value;
+  const T=cFrom(parseFloat($("temp").value),$("tempUnit").value);
+  const P1=pressureAbsPa(parseFloat($("p1").value),$("pUnit").value);
+  const P2=pressureAbsPa(parseFloat($("p2").value),$("pUnit").value);
+  const MW=parseFloat($("mw").value);
+  const err=$("error");
+  err.style.display="none";
+
+  const fail = msg => {err.textContent=msg;err.style.display="block";};
+
+  if(!Number.isFinite(T) || T<=-273.15) return fail("Enter a valid dry-bulb temperature.");
+  if(!(P1>0) || !(P2>0)) return fail("Absolute pressure must be greater than 0 Pa.");
+  if(!(MW>0)) return fail("Molecular weight must be greater than 0.");
+  let e1=humidityToE(type,val,unit,T,P1,MW);
+  if(!(e1>0)) return fail("The humidity input produces an invalid or non-positive water vapour pressure.");
+  if(e1>=P1) return fail("Water vapour pressure is equal to or higher than total sample pressure.");
+
+  const x=e1/P1;
+  const e=e1*(P2/P1);
+  if(e>=P2) return fail("Pressure compensation produces water vapour pressure equal to or higher than total pressure.");
+
+  const swvp=satForRH(T);
+  const dpf=autoPointFromE(e);
+  const dp=dewPointFromE(e);
+  const fp=frostPointFromE(e);
+  const rh=100*e/swvp;
+  const ratio=MW_WATER/MW;
+  const y=ratio*x/(1-x);                 // kg water / kg dry gas
+  const q=y/(1+y);                       // kg water / kg moist gas
+  const ppmv=x*1e6;
+  const ppmw=q*1e6;
+  const abs=e*(MW_WATER/1000)/(R*(T+273.15))*1000; // g/m3 at target state
+  const h=1.006*T + y*(2501+1.86*T);
+  const aw=rh/100;
+  const wb=wetBulbFromE(T,e,P2);
+
+  if(e > swvp*1.000001){
+    fail("Calculated water vapour pressure is above saturation at the entered dry-bulb temperature. Increase temperature or reduce humidity.");
+  }
+
+  setResult("rWVP",e,7);
+  setResult("rSWVP",swvp,7);
+  setResult("rDPF",dpf,7);
+  setResult("rDP",dp,7);
+  setResult("rFP",fp,7);
+  setResult("rRH",rh,7);
+  setResult("rWB",wb,7);
+  setResult("rPPMV",ppmv,7);
+  setResult("rPPMW",ppmw,7);
+  setResult("rMix",y*1000,8);
+  setResult("rAbs",abs,8);
+  setResult("rH",h,7);
+  setResult("rAw",aw,8);
+
+  setHero("heroDP","heroDPBox",dpf,7);
+  setHero("heroMix","heroMixBox",y*1000,8);
+  setHero("heroRH","heroRHBox",rh,7);
+}
+
+function reset(){
+  $("humidType").value="dpf"; refreshUnits(); $("humidUnit").value="c";
+  $("humidValue").value="-50";
+  $("p1").value="1.01325"; $("p2").value="1.01325"; $("pUnit").value="bara";
+  $("gasPreset").value="28.96546"; $("mw").value="28.96546";
+  $("temp").value="20"; $("tempUnit").value="c"; $("rhRef").value="water";
+  calculate();
+}
+
+$("humidType").addEventListener("change",()=>{refreshUnits();calculate();});
+["humidValue","p1","p2","mw","temp"].forEach(id=>$(id).addEventListener("input",calculate));
+["humidUnit","pUnit","tempUnit","rhRef"].forEach(id=>$(id).addEventListener("change",calculate));
+$("gasPreset").addEventListener("change",()=>{
+  if($("gasPreset").value!=="custom") $("mw").value=$("gasPreset").value;
+  calculate();
+});
+$("mw").addEventListener("input",()=>{
+  if($("gasPreset").value!=="custom" && Math.abs(parseFloat($("mw").value)-parseFloat($("gasPreset").value))>1e-9) $("gasPreset").value="custom";
+});
+$("calc").addEventListener("click",calculate);
+$("reset").addEventListener("click",reset);
+
+document.addEventListener("click",e=>{
+  const target=e.target.closest(".copy-value");
+  if(target && target.dataset.raw) copyResult(target);
+});
+
+refreshUnits();
+$("humidUnit").value="c";
+calculate();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

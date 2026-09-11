@@ -1,13 +1,13 @@
-const CACHE_NAME = "hvac-tools-v1";
+const CACHE_NAME = "hvac-tools-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./humidity.html",
   "./psychrometrics.html",
   "./manifest.webmanifest",
-  "./icons/icon-180.png",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icon-180.png",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 self.addEventListener("install", event => {
